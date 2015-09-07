@@ -20,4 +20,4 @@ private:
   float p_mean;
 };
 
-#endif //RandomWalker
+#endif //RandomWalker_H

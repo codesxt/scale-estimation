@@ -20,8 +20,10 @@ find_package(
 add_executable(
   scale-estimation
   src/main.cpp
+	src/particle_filter.cpp
 	src/random_walker.cpp
-)
+	src/visual_sensor.cpp
+	src/metric_sensor.cpp)
 target_link_libraries(
 	scale-estimation
 	${Boost_LIBRARIES})
