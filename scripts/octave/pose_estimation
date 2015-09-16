@@ -1,0 +1,94 @@
+filename = '../data/sample_pairs.csv';
+samples = csvread(filename);
+filename = '../data/data.csv';
+data = csvread(filename);
+
+% ---------------------------------------------------------------
+% Motion Update
+% ---------------------------------------------------------------
+function mu = motion_update(mu_previous, sigma_mu)
+  mu = mu_previous + normrnd(0, sigma_mu);
+endfunction
+
+% ---------------------------------------------------------------
+% Observation Function
+% ---------------------------------------------------------------
+function mu = measurement_update(x_i, y_i, lambda, sigma_xy)
+  mu = 0.5*(x_i/lambda + y_i) + normrnd(0, sigma_xy);
+endfunction
+
+% ---------------------------------------------------------------
+% 1D Kalman Filter Definition
+% ---------------------------------------------------------------
+function [mu, sigma] = KalmanFilter_measurement(mu_i, sigma_i, mu_obs, sigma_obs)
+  mu = (sigma_obs*mu_i + sigma_i*mu_obs)/(sigma_obs + sigma_i);
+  sigma = 1/((1/sigma_obs)+(sigma_i));
+endfunction
+
+function [mu, sigma] = KalmanFilter_motion(mu_i, sigma_i, sigma_mu)
+  mu = mu_i + normrnd(0, sigma_mu);
+  sigma = sigma_i;
+endfunction
+% ---------------------------------------------------------------
+% Gaussian Probability
+% Gives the probability of getting the value 'val' from the normal
+% distribution described by 'mu' and 'sigma'
+% ---------------------------------------------------------------
+function prob = Gaussian(x, mu, sigma)
+  prob = (1/sqrt(2*pi*sigma^2)) * exp((-(x-mu).^2)/(2*sigma^2));
+endfunction
+
+% ---------------------------------------------------------------
+% The results will be stored in the 'results' variable
+% The indices are as follows:
+% 1: Time stamps
+% 2: Kalman Filter Height Estimation
+% 3: Particle Filter Height Estimation
+% ---------------------------------------------------------------
+results = data(:,1);
+scale_estimation = data(:,1);
+
+% ---------------------------------------------------------------
+% 1D Kalman Filter Implementation
+% ---------------------------------------------------------------
+pose_mu = normrnd(0,50);
+pose_sigma = 0.2;
+movement_sigma = 0.3;
+measurement_sigma = 0.3;
+
+scale_estimate = 1.0;
+scale_sigma = 0.1;
+
+sz = size(data)(1);
+for i=1:sz
+  % Measurement Update
+  measurement_mu = (data(i,3)+data(i,4)/2.0)*0.5;
+  [pose_mu, pose_sigma] = KalmanFilter_measurement(pose_mu, pose_sigma, measurement_mu, measurement_sigma);
+  results(i,2) = pose_mu;
+  % Motion Update
+  [pose_mu, pose_sigma] = KalmanFilter_motion(pose_mu, pose_sigma, movement_sigma);
+
+
+
+
+  %scale_obs = data(i,4)/pose_mu;
+  %[scale_estimate, scale_sigma] = KalmanFilter_measurement(scale_estimate, scale_sigma, scale_obs, 0.2);
+  %[scale_estimate, scale_sigma] = KalmanFilter_motion(scale_estimate, scale_sigma, 0.3);
+  %scale_estimation(i,2) = max(min(scale_estimate, 4), -4);
+endfor
+
+%avg = sum(scale_estimation(:,2))/(size(scale_estimation(:,2))(1))
+
+figure(1)
+hold on;
+plot(results(:,1), results(:,2), '-r')
+plot(results(:,1), data(:,3), '-k')
+plot(results(:,1), data(:,2), '-b')
+legend('Kalman Filter Height Estimation', 'Measurements', 'Real Height')
+hold off;
+
+%figure(2)
+%hold on;
+%plot(scale_estimation(:,1), scale_estimation(:,2), '-r')
+%legend('Scale estimation')
+%hold off;

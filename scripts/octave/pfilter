@@ -1,0 +1,33 @@
+% ---------------------------------------------------------------
+% Particle Filter Implementation
+% ---------------------------------------------------------------
+stddev_mu = 0.1;
+stddev_xy = 0.1;
+lambda = 2;
+
+n_particles = 10;
+mu_est = 0.0;
+for i=1:n_particles
+  particles(i) = normrnd(0, stddev_mu);
+endfor
+
+sz = size(samples)(1);
+for i=1:sz
+  x_i = data(i,4);
+  y_i = data(i,3);
+
+  for j=1:n_particles
+    particles(i) = motion_update(mu_est, stddev_mu);
+    particles(i) = measurement_update(x_i, y_i, lambda, stddev_xy);
+  endfor
+
+  estimates(i) = sum(particles)/n_particles;
+
+  waitbar(i/sz);
+endfor
+
+figure(2)
+hold on;
+plot(samples(:,1), estimates(:), '-b', 'linewidth', 2)
+legend('Mu estimates')
+hold off;
