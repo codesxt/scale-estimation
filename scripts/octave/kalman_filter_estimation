@@ -1,5 +1,3 @@
-filename = '../data/sample_pairs.csv';
-samples = csvread(filename);
 filename = '../data/data.csv';
 data = csvread(filename);
 
@@ -25,10 +23,12 @@ function [mu, sigma] = KalmanFilter_measurement(mu_i, sigma_i, mu_obs, sigma_obs
   sigma = 1/((1/sigma_obs)+(sigma_i));
 endfunction
 
-function [mu, sigma] = KalmanFilter_motion(mu_i, sigma_i, sigma_mu)
-  mu = mu_i + normrnd(0, sigma_mu);
+function [mu, sigma] = KalmanFilter_motion(mu_i, sigma_i, sigma_mu, u)
+  %mu = mu_i + normrnd(0, sigma_mu);
+  mu = mu_i + u;
   sigma = sigma_i;
 endfunction
+
 % ---------------------------------------------------------------
 % Gaussian Probability
 % Gives the probability of getting the value 'val' from the normal
@@ -39,18 +39,44 @@ function prob = Gaussian(x, mu, sigma)
 endfunction
 
 % ---------------------------------------------------------------
+% Backward derivative
+% ---------------------------------------------------------------
+function d_f = BackwardDerivation(f_x, f_x_h, h)
+  d_f = (f_x-f_x_h)/h;
+endfunction
+
+% ---------------------------------------------------------------
+% Data Preprocessing
+% ---------------------------------------------------------------
+j = 1;
+sz = size(data)(1);
+j=1;
+for i=1:sz
+  if (mod(i,40) == 0)
+    % Timestamps
+    data2(j,1) = data(i,1);
+    % True Height
+    data2(j,2) = data(i,2);
+    % Metric Measurements
+    data2(j,3) = sum(data(i-30:i,3))/30;
+    % Visual Measurements
+    data2(j,4) = data(i,4);
+    j=j+1;
+  endif
+endfor
+
+scale_estimation(:,1) = data2(:,1);
+scale_estimation(:,2) = 2;
+
+% ---------------------------------------------------------------
 % The results will be stored in the 'results' variable
 % The indices are as follows:
 % 1: Time stamps
 % 2: Kalman Filter Height Estimation
 % 3: Particle Filter Height Estimation
 % ---------------------------------------------------------------
-results = data(:,1);
-scale_estimation = data(:,1);
 
-% ---------------------------------------------------------------
-% 1D Kalman Filter Implementation
-% ---------------------------------------------------------------
+
 pose_mu = normrnd(0,50);
 pose_sigma = 0.2;
 movement_sigma = 0.05;
@@ -59,41 +85,58 @@ measurement_sigma = 0.05;
 scale_estimate = 1.0;
 scale_sigma = 0.1;
 
-sz = size(data)(1);
+sz = size(data2)(1);
 for i=1:sz
+  % Timestamps
+  results(i,1) = data2(i,1);
   % Measurement Update
-  measurement_mu = (data(i,3)+data(i,4)/2.0)*0.5;
+  % measurement_mu = (data2(i,3)+data2(i,4)/2.0)*0.5;
+  measurement_mu =  data2(i,3);
   [pose_mu, pose_sigma] = KalmanFilter_measurement(pose_mu, pose_sigma, measurement_mu, measurement_sigma);
+  % Estimated pose
   results(i,2) = pose_mu;
   % Motion Update
-  %[pose_mu, pose_sigma] = KalmanFilter_motion(pose_mu, pose_sigma, movement_sigma);
+  #{
+  if (i > 1)
+    f_x = results(i,2);
+    f_x_h = results(i-1,2);
+    h = results(i,1) - results(i-1,1);
+    u = BackwardDerivation(f_x, f_x_h, h);
+    [pose_mu, pose_sigma] = KalmanFilter_motion(pose_mu, pose_sigma, movement_sigma, u);
+  endif
+  results(i,2) = pose_mu;
+  #}
 
 
 
-  scale_obs = data(i,4)/pose_mu;
-  poses(i) = pose_mu;
+  scale_obs = data2(i,4)/pose_mu;
   [scale_estimate, scale_sigma] = KalmanFilter_measurement(scale_estimate, scale_sigma, scale_obs, 0.2);
   %[scale_estimate, scale_sigma] = KalmanFilter_motion(scale_estimate, scale_sigma, 0.3);
   %scale_estimation(i,2) = max(min(scale_estimate, 4), -4);
-  scale_estimation(i,2) = scale_estimate;
+  scale_estimation(i,3) = scale_obs;
 endfor
-maximum=max(scale_estimation(:,2))
-minimum=min(scale_estimation(:,2))
 
-avg = sum(scale_estimation(:,2))/(size(scale_estimation(:,2))(1))
+% avg = sum(scale_estimation(:,2))/(size(scale_estimation(:,2))(1))
 
 figure(1)
 hold on;
-plot(results(:,1), results(:,2), '-r')
-%plot(results(:,1), data(:,3), '-k')
-plot(results(:,1), data(:,2), '-b')
-legend('Kalman Filter Height Estimation', 'Real Height')
+title('Measurements');
+plot(data2(:,1), data2(:,2))
+plot(data2(:,1), data2(:,3))
+plot(data2(:,1), data2(:,4))
+legend('True Height', 'Metric Sensor', 'Visual Sensor')
 hold off;
 
 figure(2)
 hold on;
-plot(scale_estimation(:,1), scale_estimation(:,2), '-r')
-plot(scale_estimation(:,1), data(:,4), '-b')
-plot(scale_estimation(:,1), poses(:), '-g')
-legend('Scale estimation', 'Filtered Metric Height', 'Visual Height')
+plot(results(:,1), results(:,2), '-r')
+plot(results(:,1), data2(:,2), '-b')
+legend('Kalman Filter Height Estimation', 'Real Height')
+hold off;
+
+figure(3)
+hold on;
+plot(scale_estimation(:,1), scale_estimation(:,2))
+plot(scale_estimation(:,1), scale_estimation(:,3))
+legend('Real scale', 'Scale Estimation')
 hold off;
