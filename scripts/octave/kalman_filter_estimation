@@ -75,15 +75,16 @@ scale_estimation(:,2) = 2;
 % 2: Kalman Filter Height Estimation
 % 3: Particle Filter Height Estimation
 % ---------------------------------------------------------------
-
-
-pose_mu = normrnd(0,50);
+pose_mu = 0.0;
 pose_sigma = 0.2;
 movement_sigma = 0.05;
 measurement_sigma = 0.05;
 
 scale_estimate = 1.0;
 scale_sigma = 0.1;
+
+visual_mu = 0.0;
+visual_sigma = 0.2;
 
 sz = size(data2)(1);
 for i=1:sz
@@ -106,17 +107,38 @@ for i=1:sz
   endif
   results(i,2) = pose_mu;
   #}
+  if(i>1)
+    f_x = results(i,2);
+    f_x_h = results(i-1,2);
+    h = results(i,1) - results(i-1,1);
+    u = BackwardDerivation(f_x, f_x_h, h);
+    derivates(i) = u;
+  endif
 
+  % Visual pose estimation
+  measurement_mu =  data2(i,4);
+  [visual_mu, visual_sigma] = KalmanFilter_measurement(visual_mu, visual_sigma, measurement_mu, measurement_sigma);
+  results(i,3) = visual_mu;
 
-
-  scale_obs = data2(i,4)/pose_mu;
+  %scale_obs = data2(i,4)/pose_mu;
+  scale_obs = visual_mu/pose_mu;
+  #{
+  window_size = 150;
+  n_results = size(results)(1);
+  if(i>window_size)
+    scale_obs = (sum(results(i-window_size:i,3))/window_size) / (sum(results(i-window_size:i,2))/window_size)
+  else
+    scale_obs = (sum(results(1:i,3))/n_results) / (sum(results(1:i,2))/n_results)
+  endif
+  #}
   [scale_estimate, scale_sigma] = KalmanFilter_measurement(scale_estimate, scale_sigma, scale_obs, 0.2);
   %[scale_estimate, scale_sigma] = KalmanFilter_motion(scale_estimate, scale_sigma, 0.3);
   %scale_estimation(i,2) = max(min(scale_estimate, 4), -4);
-  scale_estimation(i,3) = scale_obs;
+  scale_estimation(i,3) = scale_estimate;
 endfor
 
 % avg = sum(scale_estimation(:,2))/(size(scale_estimation(:,2))(1))
+average_scale = (sum(results(:,3))/500) / (sum(results(:,2))/500)
 
 figure(1)
 hold on;
@@ -130,8 +152,9 @@ hold off;
 figure(2)
 hold on;
 plot(results(:,1), results(:,2), '-r')
+plot(results(:,1), results(:,3), '-b')
 plot(results(:,1), data2(:,2), '-b')
-legend('Kalman Filter Height Estimation', 'Real Height')
+legend('KF Metric Estimation', 'KF Visual Estimation', 'Real Height')
 hold off;
 
 figure(3)

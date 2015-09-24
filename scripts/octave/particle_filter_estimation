@@ -1,0 +1,102 @@
+filename = '../data/data.csv';
+data = csvread(filename);
+
+% ---------------------------------------------------------------
+% Motion Update
+% ---------------------------------------------------------------
+function mu = motion_update(mu_previous, sigma_mu)
+  mu = mu_previous + normrnd(0, sigma_mu);
+endfunction
+
+% ---------------------------------------------------------------
+% Observation Function
+% ---------------------------------------------------------------
+function mu = measurement_update(x_i, y_i, lambda, sigma_xy)
+  mu = 0.5*(x_i/lambda + y_i) + normrnd(0, sigma_xy);
+endfunction
+
+% ---------------------------------------------------------------
+% 1D Kalman Filter Definition
+% ---------------------------------------------------------------
+function [mu, sigma] = KalmanFilter_measurement(mu_i, sigma_i, mu_obs, sigma_obs)
+  mu = (sigma_obs*mu_i + sigma_i*mu_obs)/(sigma_obs + sigma_i);
+  sigma = 1/((1/sigma_obs)+(sigma_i));
+endfunction
+
+function [mu, sigma] = KalmanFilter_motion(mu_i, sigma_i, sigma_mu, u)
+  %mu = mu_i + normrnd(0, sigma_mu);
+  mu = mu_i + u;
+  sigma = sigma_i;
+endfunction
+
+% ---------------------------------------------------------------
+% Gaussian Probability
+% Gives the probability of getting the value 'val' from the normal
+% distribution described by 'mu' and 'sigma'
+% ---------------------------------------------------------------
+function prob = Gaussian(x, mu, sigma)
+  prob = (1/sqrt(2*pi*sigma^2)) * exp((-(x-mu).^2)/(2*sigma^2));
+endfunction
+
+% ---------------------------------------------------------------
+% Backward derivative
+% ---------------------------------------------------------------
+function d_f = BackwardDerivation(f_x, f_x_h, h)
+  d_f = (f_x-f_x_h)/h;
+endfunction
+
+% ---------------------------------------------------------------
+% Data Preprocessing
+% ---------------------------------------------------------------
+j = 1;
+sz = size(data)(1);
+j=1;
+for i=1:sz
+  if (mod(i,40) == 0)
+    % Timestamps
+    data2(j,1) = data(i,1);
+    % True Height
+    data2(j,2) = data(i,2);
+    % Metric Measurements
+    data2(j,3) = sum(data(i-30:i,3))/30;
+    % Visual Measurements
+    data2(j,4) = data(i,4);
+    j=j+1;
+  endif
+endfor
+
+scale_estimation(:,1) = data2(:,1);
+scale_estimation(:,2) = 2;
+
+% ---------------------------------------------------------------
+% The results will be stored in the 'results' variable
+% The indices are as follows:
+% 1: Time stamps
+% 2: Particle Filter Height Estimation
+% ---------------------------------------------------------------
+n_particles = 10
+
+for i=1:n_particles
+  % Height
+  particles(i,1) = abs(normrnd(0, 10));
+  % Scale
+  particles(i,2) = abs(normrnd(1, 5));
+  weights(i) = 1/n_particles;
+endfor
+
+ith = 100;
+m_meas = data2(ith,3)
+v_meas = data2(ith,4)
+h_real = data2(ith,2)
+s_est = particles(1,2)
+% Height Measuredata
+h = (m_meas+v_meas/s_est)*0.5
+% Scale Measurement
+s = (v_meas/m_meas)
+
+for i=1:n_particles
+  g(i,1) = Gaussian(particles(i,1), h, 0.5);
+  g(i,2) = Gaussian(particles(i,2), s, 0.5);
+endfor
+
+[particles(:,1) particles(:,2) g(:, 1) g(:,2)]
