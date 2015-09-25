@@ -65,17 +65,16 @@ for i=1:sz
   endif
 endfor
 
-scale_estimation(:,1) = data2(:,1);
-scale_estimation(:,2) = 2;
-
 % ---------------------------------------------------------------
 % The results will be stored in the 'results' variable
 % The indices are as follows:
 % 1: Time stamps
 % 2: Particle Filter Height Estimation
 % ---------------------------------------------------------------
-n_particles = 10
-
+% ----------------------------------------------------
+% Initialize particles
+% ----------------------------------------------------
+n_particles = 50
 for i=1:n_particles
   % Height
   particles(i,1) = abs(normrnd(0, 10));
@@ -84,19 +83,74 @@ for i=1:n_particles
   weights(i) = 1/n_particles;
 endfor
 
-ith = 100;
-m_meas = data2(ith,3)
-v_meas = data2(ith,4)
-h_real = data2(ith,2)
-s_est = particles(1,2)
-% Height Measuredata
-h = (m_meas+v_meas/s_est)*0.5
-% Scale Measurement
-s = (v_meas/m_meas)
+sz = size(data2)(1);
+for i=1:sz
+  % ----------------------------------------------------
+  % Evaluate particles with measurements
+  % ----------------------------------------------------
+  m_meas = data2(i,3);      % Metric height measurement
+  v_meas = data2(i,4);      % Visual height measurement
+  h_real = data2(i,2);      % Real height
+  % Scale estimate
+  if(i==1)
+    s_est = sum(particles(:,2).*weights(:));
+  else
+    s_est = results(i-1,3);
+  endif
+  % Height Measuredata
+  h = (m_meas+v_meas/s_est)*0.5;
+  % Scale Measurement
+  s = (v_meas/m_meas);
 
-for i=1:n_particles
-  g(i,1) = Gaussian(particles(i,1), h, 0.5);
-  g(i,2) = Gaussian(particles(i,2), s, 0.5);
+  for j=1:n_particles
+    g(j,1) = Gaussian(particles(j,1), h, 0.5);
+    g(j,2) = Gaussian(particles(j,2), s, 0.5);
+  endfor
+
+  % ----------------------------------------------------
+  % Reweighting particles
+  % ----------------------------------------------------
+
+  p = g(:,1) + g(:,2);
+  %[particles(:,1) particles(:,2) g(:, 1) g(:,2) p(:)]
+  weights = p/sum(p);
+
+  [particles(:,1) particles(:,2) weights(:)];
+  height_average_estimate = sum(particles(:,1).*weights(:));
+  scale_average_estimate = sum(particles(:,2).*weights(:));
+  [val id] = max(weights);
+  height_max_estimate = particles(id,1);
+  scale_max_estimate = particles(id,2);
+  results(i,1) = height_average_estimate;
+  results(i,2) = height_max_estimate;
+  results(i,3) = scale_average_estimate;
+  results(i,4) = scale_max_estimate;
+
+  % ----------------------------------------------------
+  % Resampling particles
+  % ----------------------------------------------------
+  csum =cumsum(weights);
+  new_particles = zeros(n_particles, 2);
+  for j=1:n_particles
+    r = unifrnd(0,1);
+    pos = sum(csum(:)<r)+1;
+    %[r particles(pos, :) weights(pos)]
+    new_particles(j,:) = particles(pos,:) + normrnd(0,0.3,1,2);
+  endfor
+  particles = new_particles;
 endfor
 
-[particles(:,1) particles(:,2) g(:, 1) g(:,2)]
+figure(1)
+hold on;
+plot(data2(:,2))
+plot(results(:,1), '-r');
+plot(results(:,2), '-g');
+legend('True Height', 'Average Estimated Height', 'Max Estimated Height')
+hold off;
+
+figure(2)
+hold on;
+plot(results(:,3), '-r');
+plot(results(:,4), '-g');
+legend('Average Estimated Scale', 'Max Estimated Scale')
+hold off;
