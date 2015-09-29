@@ -74,10 +74,10 @@ endfor
 % ----------------------------------------------------
 % Initialize particles
 % ----------------------------------------------------
-n_particles = 50
+n_particles = 100;
 for i=1:n_particles
   % Height
-  particles(i,1) = abs(normrnd(0, 10));
+  particles(i,1) = normrnd(0, 10);
   % Scale
   particles(i,2) = abs(normrnd(1, 5));
   weights(i) = 1/n_particles;
@@ -97,7 +97,7 @@ for i=1:sz
   else
     s_est = results(i-1,3);
   endif
-  % Height Measuredata
+  % Height Measurement
   h = (m_meas+v_meas/s_est)*0.5;
   % Scale Measurement
   s = (v_meas/m_meas);
