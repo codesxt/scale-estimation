@@ -24,9 +24,35 @@ visual_data = scaled_data(data, h_2, sigma_y_2);
 h1 = unifrnd(0,5);
 h2 = normrnd(1,0.1);
 h = [h1 h2];
-sigma_x = normrnd(0,0.2);
-sigma_y = normrnd(0,0.2);
+sigma_x = abs(normrnd(0,0.2));
+sigma_y = abs(normrnd(0,0.2));
 theta = [h sigma_x sigma_y];
+
+%================Expectation Step==================%
+% Get log likelihood of observations given theta
+n_obs = size(data)(2)
+h1 = theta(1)
+h2 = theta(2)
+sigma_y = theta(4)
+H = [h1 0;
+     0 h2]
+for i=1:n_obs
+  #{
+  X_I = [visual_data(i);
+         metric_data(i)];
+  X(i,:)=H*X_I+normrnd(0,theta(4),2,1);
+  likelihood(i) = log(gaussian(X(i,1), data(i), sigma_x));
+  #}
+  x_i = h1*visual_data(i);
+  LL(i) = log(gaussian(x_i, data(i), sigma_x));
+endfor
+%figure(2)
+%plot(X)
+
+figure(3)
+plot(LL)
+
+%================Maximization Step=================%
 
 
 
