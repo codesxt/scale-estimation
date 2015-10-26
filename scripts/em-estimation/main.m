@@ -28,31 +28,43 @@ sigma_x = abs(normrnd(0,0.2));
 sigma_y = abs(normrnd(0,0.2));
 theta = [h sigma_x sigma_y];
 
-%================Expectation Step==================%
-% Get log likelihood of observations given theta
 n_obs = size(data)(2)
 h1 = theta(1)
 h2 = theta(2)
 sigma_y = theta(4)
 H = [h1 0;
      0 h2]
-for i=1:n_obs
-  #{
-  X_I = [visual_data(i);
-         metric_data(i)];
-  X(i,:)=H*X_I+normrnd(0,theta(4),2,1);
-  likelihood(i) = log(gaussian(X(i,1), data(i), sigma_x));
-  #}
-  x_i = h1*visual_data(i);
-  LL(i) = log(gaussian(x_i, data(i), sigma_x));
+for j=1:10
+  %================Expectation Step==================%
+  % Get log likelihood of observations given theta
+  for i=1:n_obs
+    #{
+    X_I = [visual_data(i);
+           metric_data(i)];
+    X(i,:)=H*X_I+normrnd(0,theta(4),2,1);
+    likelihood(i) = log(gaussian(X(i,1), data(i), 0.3));
+    #}
+    x_i = h1*visual_data(i);
+    loglik(i) = log(gaussian(x_i, data(i), 0.3));
+  endfor
+  loglik=loglik+min(loglik(:));
+  loglik=normalize(loglik);
+  %================Maximization Step=================%
+  % Calculate new parameters
+  %loglik = normalize(loglik);
+  figure(2)
+  plot(loglik)
+  %h1 = sum(loglik*h1)
+  %[val id] = max(loglik);
+  %h1 = loglik(id)*h1
+  est=visual_data(:)./data(:);
+  h1=sum(est.*loglik')
+
+  estimates(j) = h1;
 endfor
-%figure(2)
-%plot(X)
 
 figure(3)
-plot(LL)
-
-%================Maximization Step=================%
+plot(estimates)
 
 
 
