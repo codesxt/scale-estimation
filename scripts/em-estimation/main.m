@@ -66,12 +66,6 @@ endfor
 figure(3)
 plot(estimates)
 
-
-
-
-
-
-
 %==================================================%
 %==================Visualization===================%
 %==================================================%
@@ -80,5 +74,13 @@ hold on;
 plot(data, '-b')
 plot(metric_data, '-r')
 plot(visual_data, '-g')
-legend('Real height data', 'Metric height data')
+legend('Real height data', 'Metric height data', 'Visual SLAM height data')
+hold off;
+
+figure(4)
+hold on;
+plot(data, '-b')
+plot(metric_data, 'r')
+plot(visual_data./h1, 'g')
+legend('Real height data', 'Metric height data', 'Scaled Visual SLAM height data')
 hold off;
